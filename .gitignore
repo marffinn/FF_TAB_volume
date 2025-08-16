@@ -3,6 +3,7 @@
 
 # Packaged extension
 web-ext-artifacts/
+.amo-upload-uuid
 
 # Dependencies
 /node_modules
