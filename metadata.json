@@ -1,0 +1,15 @@
+{
+    "listed": true,
+    "name": {
+        "en-US": "Tab Volume Control"
+    },
+    "summary": {
+        "en-US": "Adjust volume per tab"
+    },
+    "categories": {
+        "firefox": [
+            "other"
+        ]
+    },
+    "license": "MPL-2.0"
+}

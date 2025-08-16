@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Packaged extension
+web-ext-artifacts/
+
+# Dependencies
+/node_modules
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
