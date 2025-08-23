@@ -4,8 +4,4 @@
 # Ignore web-ext artifacts
 web-ext-artifacts/
 
-# Ignore sensitive files
-muted.txt
-unmuted.txt
-
 release.sh
