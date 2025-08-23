@@ -5,7 +5,7 @@ browser.tabs.query({ audible: true }).then(tabs => {
     if (tabs.length === 0) {
         const message = document.createElement('div');
         message.id = 'no-tabs-message';
-        message.textContent = 'No tabs playing audio';
+        message.textContent = 'No tabs playing audio ';
         tabList.appendChild(message);
         return;
     }
