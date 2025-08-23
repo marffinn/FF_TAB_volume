@@ -1,15 +1,9 @@
-# Environment variables
+# Ignore environment variables
 .env
 
-# Packaged extension
+# Ignore web-ext artifacts
 web-ext-artifacts/
-.amo-upload-uuid
 
-# Dependencies
-/node_modules
-
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
+# Ignore sensitive files
+muted.txt
+unmuted.txt

@@ -1,7 +1,7 @@
 {
     "manifest_version": 2,
     "name": "Volume For Tabs",
-    "version": "1.2",
+    "version": "1.4",
     "description": "Adjust volume for each browser tab individually.",
     "icons": {
         "48": "icon.png"
@@ -36,5 +36,6 @@
         "gecko": {
             "id": "marffinn@gmail.com"
         }
-    }
+    },
+    "license": "MIT"
 }

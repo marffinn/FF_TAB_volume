@@ -1,5 +1,14 @@
 let currentVolume = 1.0;  // Default
 
+// Get initial volume from storage
+browser.runtime.sendMessage({ command: 'getVolume' }).then(response => {
+    if (response && response.volume !== undefined) {
+        currentVolume = response.volume;
+        applyVolumeToMedia();
+    }
+}).catch(err => console.error(err));
+
+
 // Listen for messages from popup
 browser.runtime.onMessage.addListener((message) => {
     console.log('Content script received message:', message);  // Debug log
@@ -18,6 +27,8 @@ function applyVolumeToMedia() {
         el.volume = currentVolume;
     });
 }
+
+
 
 // Observe for new media elements added dynamically
 const observer = new MutationObserver((mutations) => {
