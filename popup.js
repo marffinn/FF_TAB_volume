@@ -1,5 +1,24 @@
-// Fetch only audible tabs
-browser.tabs.query({ audible: true }).then(tabs => {
+// Fetch audible tabs and YouTube tabs
+const audibleTabsQuery = browser.tabs.query({ audible: true });
+const youtubeTabsQuery = browser.tabs.query({ url: "*://*.youtube.com/*" });
+
+const playIcon = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-play"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+`;
+
+const pauseIcon = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-pause"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+`;
+
+Promise.all([audibleTabsQuery, youtubeTabsQuery]).then(results => {
+    const audibleTabs = results[0];
+    const youtubeTabs = results[1];
+
+    const tabsMap = new Map();
+    audibleTabs.forEach(tab => tabsMap.set(tab.id, tab));
+    youtubeTabs.forEach(tab => tabsMap.set(tab.id, tab));
+
+    const tabs = Array.from(tabsMap.values());
     const tabList = document.getElementById('tab-list');
 
     if (tabs.length === 0) {
@@ -56,6 +75,10 @@ browser.tabs.query({ audible: true }).then(tabs => {
         muteButton.className = 'mute-button';
         muteButton.dataset.tabId = tab.id;
 
+        const playPauseButton = document.createElement('button');
+        playPauseButton.className = 'play-pause-button';
+        playPauseButton.dataset.tabId = tab.id;
+
         const storageKey = `volume_${tab.id}`;
         const muteKey = `muted_${tab.id}`;
 
@@ -69,6 +92,18 @@ browser.tabs.query({ audible: true }).then(tabs => {
                 muteButton.innerHTML = muteIcon;
             }
         });
+
+        // Get initial play/pause state
+        browser.tabs.sendMessage(tab.id, { action: 'getPlayPauseState' })
+            .then(response => {
+                if (response && response.paused) {
+                    playPauseButton.innerHTML = playIcon;
+                } else {
+                    playPauseButton.innerHTML = pauseIcon;
+                }
+            })
+            .catch(e => console.error("Could not get initial play/pause state:", e));
+
 
         slider.addEventListener('input', (e) => {
             const volume = parseInt(e.target.value);
@@ -104,12 +139,31 @@ browser.tabs.query({ audible: true }).then(tabs => {
             });
         });
 
+        playPauseButton.addEventListener('click', (e) => {
+            browser.tabs.sendMessage(parseInt(e.currentTarget.dataset.tabId), { action: 'togglePlayPause' });
+        });
+
+        controlsDiv.appendChild(playPauseButton);
         controlsDiv.appendChild(slider);
         controlsDiv.appendChild(muteButton);
         div.appendChild(controlsDiv);
         tabList.appendChild(div);
     });
 }).catch(error => console.error('Error querying tabs:', error));
+
+// Listen for state changes from content scripts
+browser.runtime.onMessage.addListener((message, sender) => {
+    if (message.action === 'playPauseStateChanged') {
+        const button = document.querySelector(`.play-pause-button[data-tab-id="${sender.tab.id}"]`);
+        if (button) {
+            if (message.paused) {
+                button.innerHTML = playIcon;
+            } else {
+                button.innerHTML = pauseIcon;
+            }
+        }
+    }
+});
 
 // Helper function to send message with logging
 function sendVolumeMessage(tabId, volume) {

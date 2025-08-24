@@ -1,4 +1,3 @@
-
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     width: 300px;
@@ -120,6 +119,23 @@ input[type=range]::-moz-range-thumb {
 }
 
 .mute-button:hover svg {
+    stroke: #007bff;
+}
+
+.play-pause-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.play-pause-button svg {
+    width: 20px;
+    height: 20px;
+    stroke: #f0f0f0;
+}
+
+.play-pause-button:hover svg {
     stroke: #007bff;
 }
 
