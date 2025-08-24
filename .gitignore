@@ -4,4 +4,4 @@
 # Ignore web-ext artifacts
 web-ext-artifacts/
 
-release.sh
+release.ps1

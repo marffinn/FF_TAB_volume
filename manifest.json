@@ -1,41 +1,41 @@
 {
-    "manifest_version": 2,
-    "name": "Volume For Tabs",
-    "version": "1.4",
-    "description": "Adjust volume for each browser tab individually.",
-    "icons": {
-        "48": "icon.png"
-    },
-    "permissions": [
-        "tabs",
-        "storage",
+  "manifest_version": 2,
+  "name": "Volume For Tabs",
+  "version": "1.5",
+  "description": "Adjust volume for each browser tab individually.",
+  "icons": {
+    "48": "icon.png"
+  },
+  "permissions": [
+    "tabs",
+    "storage",
+    "<all_urls>"
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
         "<all_urls>"
-    ],
-    "browser_action": {
-        "default_popup": "popup.html",
-        "default_icon": "icon.png"
-    },
-    "background": {
-        "scripts": [
-            "background.js"
-        ],
-        "persistent": true
-    },
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "content.js"
-            ],
-            "run_at": "document_end"
-        }
-    ],
-    "browser_specific_settings": {
-        "gecko": {
-            "id": "marffinn@gmail.com"
-        }
-    },
-    "license": "MIT"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "marffinn@gmail.com"
+    }
+  },
+  "license": "MIT"
 }
