@@ -17,12 +17,10 @@ if (-not $webext_exists) {
 
 # --- SCRIPT LOGIC ---
 
-# Create a temporary directory for backups
-$backupDir = Join-Path $env:TEMP ([System.Guid]::NewGuid().ToString())
-New-Item -ItemType Directory -Path $backupDir | Out-Null
-Write-Host "Backup directory created at $backupDir"
+$current_version = jq -r .version manifest.json
+$tempFile = "tmp.$([System.Guid]::NewGuid()).json"
 
-# Wrap the core logic in a try...finally block to ensure cleanup
+# Wrap the core logic in a try...finally block to ensure the version is reverted.
 try {
     # Load environment variables from .env file
     if (Test-Path .\.env) {
@@ -37,65 +35,27 @@ try {
         }
     }
 
-    # Find all JavaScript files, excluding node_modules
-    $jsFiles = Get-ChildItem -Path . -Recurse -Filter *.js -Exclude "*node_modules*"
-
-    # Backup and "minify" JavaScript files
-    foreach ($file in $jsFiles) {
-        Write-Host "Processing $($file.FullName)..."
-        # 1. Backup original file
-        Copy-Item -Path $file.FullName -Destination $backupDir
-
-        # 2. Read content and remove comments/console.logs (replicating original script's logic)
-        $content = Get-Content $file.FullName -Raw
-        $modifiedContent = ($content -split [System.Environment]::NewLine) |
-            Where-Object { $_ -notmatch '//' -and $_ -notmatch 'console\.log' } |
-            ForEach-Object { $_ -replace '/\*.*?\*/', '' }
-        
-        # 3. Write modified content back to the file
-        Set-Content -Path $file.FullName -Value ($modifiedContent -join [System.Environment]::NewLine)
-    }
-
-    # Get the current version from manifest.json
-    $current_version = jq -r .version manifest.json
-
     # Increment the version
     $versionParts = $current_version.Split('.')
     $lastPart = [int]$versionParts[-1] + 1
     $versionParts[-1] = $lastPart.ToString()
     $new_version = $versionParts -join '.'
 
-    # Update the version in manifest.json
-    $tempFile = "tmp.$([System.Guid]::NewGuid()).json"
+    # Update the version in manifest.json for packaging
     jq --arg newver "$new_version" '.version = $newver' manifest.json > $tempFile
     Move-Item -Path $tempFile -Destination "manifest.json" -Force
-    Write-Host "Updated version to $new_version"
+    Write-Host "Temporarily updated version to $new_version for signing."
 
     # Sign the extension
     Write-Host "Signing the extension..."
     web-ext sign --api-key="$($env:API_KEY)" --api-secret="$($env:API_SECRET)" --channel listed
 
-    # Revert the version change in manifest.json
+} finally {
+    # This block will run even if errors occur.
+    # Revert the version change in manifest.json to keep the source file clean.
+    Write-Host "Reverting version change in manifest.json..."
     jq --arg curver "$current_version" '.version = $curver' manifest.json > $tempFile
     Move-Item -Path $tempFile -Destination "manifest.json" -Force
-    Write-Host "Reverted version to $current_version"
-
-} finally {
-    # This block will run even if errors occur, ensuring files are restored.
-
-    # Restore original JavaScript files
-    $jsFiles = Get-ChildItem -Path . -Recurse -Filter *.js -Exclude "*node_modules*"
-    foreach ($file in $jsFiles) {
-        $backupFile = Join-Path $backupDir $file.Name
-        if (Test-Path $backupFile) {
-            Write-Host "Restoring $($file.FullName)..."
-            Copy-Item -Path $backupFile -Destination $file.FullName -Force
-        }
-    }
-
-    # Clean up the backup directory
-    Write-Host "Cleaning up backup directory..."
-    Remove-Item -Recurse -Force -Path $backupDir
+    Remove-Item $tempFile -ErrorAction SilentlyContinue
+    Write-Host "Reverted version to $current_version. Script finished."
 }
-
-Write-Host "Script finished."
