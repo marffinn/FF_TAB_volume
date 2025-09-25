@@ -1,22 +1,23 @@
+// Icon constants
+const ICONS = {
+    play: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
+    pause: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`,
+    mute: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`,
+    unmute: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`
+};
+
 // Fetch audible tabs and YouTube tabs
 const audibleTabsQuery = browser.tabs.query({ audible: true });
 const youtubeTabsQuery = browser.tabs.query({ url: "*://*.youtube.com/*" });
 
-const playIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-play"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-`;
-
-const pauseIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-pause"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-`;
-
 Promise.all([audibleTabsQuery, youtubeTabsQuery]).then(results => {
-    const audibleTabs = results[0];
-    const youtubeTabs = results[1];
-
+    const [audibleTabs, youtubeTabs] = results;
     const tabsMap = new Map();
-    audibleTabs.forEach(tab => tabsMap.set(tab.id, tab));
-    youtubeTabs.forEach(tab => tabsMap.set(tab.id, tab));
+    
+    // Limit iterations to prevent potential DoS
+    const maxTabs = 50;
+    [...audibleTabs.slice(0, maxTabs), ...youtubeTabs.slice(0, maxTabs)]
+        .forEach(tab => tabsMap.set(tab.id, tab));
 
     const tabs = Array.from(tabsMap.values());
     const tabList = document.getElementById('tab-list');
@@ -29,13 +30,7 @@ Promise.all([audibleTabsQuery, youtubeTabsQuery]).then(results => {
         return;
     }
 
-    const muteIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-volume-2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-`;
 
-    const unmuteIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-volume-x"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-`;
 
     tabs.forEach(tab => {
         const div = document.createElement('div');
@@ -86,32 +81,31 @@ Promise.all([audibleTabsQuery, youtubeTabsQuery]).then(results => {
         browser.storage.sync.get([storageKey, muteKey], (data) => {
             if (data[muteKey]) {
                 slider.value = 0;
-                muteButton.innerHTML = unmuteIcon;
+                setButtonIcon(muteButton, 'unmute');
             } else if (data[storageKey] !== undefined) {
                 slider.value = data[storageKey] * 100;
-                muteButton.innerHTML = muteIcon;
+                setButtonIcon(muteButton, 'mute');
             }
         });
 
         // Get initial play/pause state
         browser.tabs.sendMessage(tab.id, { action: 'getPlayPauseState' })
             .then(response => {
-                if (response && response.paused) {
-                    playPauseButton.innerHTML = playIcon;
-                } else {
-                    playPauseButton.innerHTML = pauseIcon;
-                }
+                setButtonIcon(playPauseButton, response?.paused ? 'play' : 'pause');
             })
-            .catch(e => console.error("Could not get initial play/pause state:", e));
+            .catch(e => console.error(`Could not get play/pause state for tab ${tab.id}:`, e));
 
 
         slider.addEventListener('input', (e) => {
             const volume = parseInt(e.target.value);
             const normalizedVolume = volume / 100;
             sendVolumeMessage(e.target.dataset.tabId, normalizedVolume);
-            browser.storage.sync.set({ [storageKey]: normalizedVolume });
-            browser.storage.sync.set({ [muteKey]: false });
-            muteButton.innerHTML = muteIcon;
+            // Batch storage operations
+            browser.storage.sync.set({ 
+                [storageKey]: normalizedVolume,
+                [muteKey]: false 
+            });
+            setButtonIcon(muteButton, 'mute');
         });
 
         muteButton.addEventListener('click', (e) => {
@@ -123,18 +117,25 @@ Promise.all([audibleTabsQuery, youtubeTabsQuery]).then(results => {
                         const lastVolume = data_before_mute[`volume_before_mute_${tab.id}`] || 1;
                         slider.value = lastVolume * 100;
                         sendVolumeMessage(tab.id, lastVolume);
-                        browser.storage.sync.set({ [storageKey]: lastVolume });
-                        browser.storage.sync.set({ [muteKey]: false });
-                        muteButton.innerHTML = muteIcon;
+                        // Batch storage operations
+                        browser.storage.sync.set({ 
+                            [storageKey]: lastVolume,
+                            [muteKey]: false 
+                        });
+                        setButtonIcon(muteButton, 'mute');
                     });
                 } else {
                     // Mute
-                    browser.storage.sync.set({ [`volume_before_mute_${tab.id}`]: slider.value / 100 });
+                    const currentVolume = slider.value / 100;
                     slider.value = 0;
                     sendVolumeMessage(tab.id, 0);
-                    browser.storage.sync.set({ [storageKey]: 0 });
-                    browser.storage.sync.set({ [muteKey]: true });
-                    muteButton.innerHTML = unmuteIcon;
+                    // Batch storage operations
+                    browser.storage.sync.set({ 
+                        [`volume_before_mute_${tab.id}`]: currentVolume,
+                        [storageKey]: 0,
+                        [muteKey]: true 
+                    });
+                    setButtonIcon(muteButton, 'unmute');
                 }
             });
         });
@@ -156,23 +157,31 @@ browser.runtime.onMessage.addListener((message, sender) => {
     if (message.action === 'playPauseStateChanged') {
         const button = document.querySelector(`.play-pause-button[data-tab-id="${sender.tab.id}"]`);
         if (button) {
-            if (message.paused) {
-                button.innerHTML = playIcon;
-            } else {
-                button.innerHTML = pauseIcon;
-            }
+            setButtonIcon(button, message.paused ? 'play' : 'pause');
         }
     }
 });
 
-// Helper function to send message with logging
+// Helper function to safely set button icons
+function setButtonIcon(button, iconType) {
+    button.innerHTML = '';
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(ICONS[iconType], 'image/svg+xml');
+    button.appendChild(svgDoc.documentElement);
+}
+
+// Helper function to send message with better error handling
 function sendVolumeMessage(tabId, volume) {
-    browser.tabs.sendMessage(parseInt(tabId), {
+    const id = parseInt(tabId);
+    if (isNaN(id)) {
+        console.error('Invalid tab ID:', tabId);
+        return;
+    }
+    
+    browser.tabs.sendMessage(id, {
         action: 'setVolume',
         volume: volume
-    }).then(response => {
-        console.log('Message sent successfully to tab ' + tabId + ', response:', response);
     }).catch(error => {
-        console.error('Error sending message to tab ' + tabId + ':', error.message);
+        console.error(`Failed to send volume message to tab ${id}:`, error.message);
     });
 }
